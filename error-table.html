@@ -1,0 +1,229 @@
+<!-- Success Toast -->
+@if (successMsg()) {
+<div class="delete-success-toast">
+  {{ successMsg() }}
+</div>
+}
+
+<!-- Dropdown ke bahar click karne par band -->
+@if (openMenu()) {
+<div class="menu-backdrop" (click)="openMenu.set(null)"></div>
+}
+
+<div class="head">
+  <div>
+    <h2 class="title">Error Table</h2>
+    <p class="subtitle">{{ total() | number }} errors recorded</p>
+  </div>
+
+  <div class="head-actions">
+    <button type="button" class="btn-export" (click)="openExportModal()">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 3v12" />
+        <path d="M7 11l5 5 5-5" />
+        <path d="M5 21h14" />
+      </svg>
+      Export
+    </button>
+
+  </div>
+</div>
+
+<div class="toolbar">
+  <div class="search-box">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+      stroke-linecap="round">
+      <circle cx="11" cy="11" r="7" />
+      <path d="M20 20l-4-4" />
+    </svg>
+    <input type="text" placeholder="Search by Error ID or Client" [ngModel]="search()"
+      (ngModelChange)="onSearch($event)" />
+  </div>
+
+  <div class="filters">
+    @for (f of filterDefs(); track f.key) {
+    <div class="dd" [class.open]="openMenu() === f.key">
+      <button type="button" class="dd-btn" [class.active]="isActive(f)" (click)="toggleMenu(f.key)">
+        <span class="dd-text">{{ textFor(f) }}</span>
+        <svg class="dd-arrow" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
+          stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M6 9l6 6 6-6" />
+        </svg>
+      </button>
+
+      @if (openMenu() === f.key) {
+      <div class="dd-menu">
+        @for (o of f.options; track o.value) {
+        <button type="button" class="dd-item" [class.selected]="o.value === values()[f.key]"
+          (click)="pick(f.key, o.value)">
+          {{ o.label }}
+        </button>
+        }
+      </div>
+      }
+    </div>
+    }
+
+    <label class="date-field" [class.active]="fromDate()">
+      <span>From</span>
+      <input type="date" [ngModel]="fromDate()" (ngModelChange)="setDate('from', $event)" />
+    </label>
+
+    <label class="date-field" [class.active]="toDate()">
+      <span>To</span>
+      <input type="date" [ngModel]="toDate()" (ngModelChange)="setDate('to', $event)" />
+    </label>
+
+    @if (hasFilters()) {
+    <button type="button" class="btn-clear" (click)="clearFilters()">Clear</button>
+    }
+  </div>
+</div>
+
+@if (loading()) {
+<div class="loader-wrapper">
+  <div class="spinner-circle">
+    <div class="spinner-ring"></div>
+    <span class="spinner-counter">{{ loadingSeconds() }}s</span>
+  </div>
+</div>
+}
+
+@if (errorMsg()) { <p class="msg error">{{ errorMsg() }}</p> }
+@if (!loading() && !errorMsg() && rows().length === 0) {
+<p class="msg">No error found.</p>
+}
+
+<div class="grid-card" [style.display]="loading() ? 'none' : 'block'">
+  <ag-grid-angular class="ag-theme-quartz custom-grid" theme="legacy" domLayout="autoHeight" [rowHeight]="rowHeight"
+    [headerHeight]="headerHeight" [tooltipShowDelay]="400" [rowData]="rows()" [columnDefs]="columnDefs"
+    [defaultColDef]="defaultColDef" [gridOptions]="gridOptions" [getRowId]="getRowId" (gridReady)="onGridReady($event)"
+    (gridSizeChanged)="onGridSizeChanged()" (cellClicked)="onCellClicked($event)" (rowClicked)="onRowClicked($event)">
+  </ag-grid-angular>
+</div>
+
+<!-- Page badalne ki bar -->
+@if (!loading()) {
+<div class="pager">
+  <span class="pager-info">{{ from() | number }}–{{ to() | number }} of {{ total() | number }}</span>
+
+  <div class="pager-btns">
+    <button type="button" class="pg-btn" [disabled]="page() === 1 || loading()" (click)="goTo(page() - 1)">
+      ‹ Prev
+    </button>
+    <span class="pg-now">Page {{ page() | number }} / {{ pages() | number }}</span>
+    <button type="button" class="pg-btn" [disabled]="page() === pages() || loading()" (click)="goTo(page() + 1)">
+      Next ›
+    </button>
+  </div>
+</div>
+}
+
+<!-- Export confirmation modal -->
+@if (showExportModal()) {
+<div class="modal-backdrop" (click)="cancelExport()"></div>
+<div class="center-modal small-modal">
+  <h3 class="modal-title">Do you want to export this?</h3>
+  <div class="modal-actions center-actions">
+    <button type="button" class="btn-secondary" (click)="cancelExport()">No</button>
+    <button type="button" class="btn-primary" (click)="confirmExport()">Yes</button>
+  </div>
+</div>
+}
+
+@if (selected(); as e) {
+<div class="overlay" (click)="closeSheet()"></div>
+
+<div class="error-modal" role="dialog" aria-modal="true">
+  <button type="button" class="modal-close-btn" (click)="closeSheet()" aria-label="Close">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+      stroke-linecap="round">
+      <path d="M6 6l12 12M18 6L6 18" />
+    </svg>
+  </button>
+
+  <div class="modal-card-top">
+    <div class="logo-icon">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none">
+        <path
+          d="M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"
+          stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" stroke="#44474F" />
+        <path d="M12 16V12" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" stroke="#44474F" />
+        <path d="M12 8H12.01" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" stroke="#44474F" />
+      </svg>
+    </div>
+
+    <!-- Meta Information -->
+    <h2 class="modal-card-title">Meta Information</h2>
+  </div>
+
+  <div class="modal-body-scroll">
+
+    <div class="meta-boxes">
+      <div class="meta-box">
+        <span>Status :</span>
+        <span class="meta-unresolved-box" [class.resolved]="e.erstatus === 1">{{ e.erstatus === 1 ? 'Resolved' :
+          'Unresolved' }}</span>
+      </div>
+      <div class="meta-box">
+        <span>Error Count :</span>
+        <span>{{ e.errorCount }}</span>
+      </div>
+      <div class="meta-box">
+        <span>Error Time :</span>
+        <span>{{ fmt(e.dtime) }}</span>
+      </div>
+    </div>
+
+    <!-- Query card -->
+    <div class="modal-card">
+      <h3 class="modal-card-content">
+        <span>Query</span>
+        <svg (click)="copyText(e.erquery || qBox.innerText)" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none">
+          <path
+            d="M10 8H20C21.1046 8 22 8.89543 22 10V20C22 21.1046 21.1046 22 20 22H10C8.89543 22 8 21.1046 8 20V10C8 8.89543 8.89543 8 10 8Z"
+            stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" stroke="#44474F" />
+          <path d="M4 16C2.9 16 2 15.1 2 14V4C2 2.9 2.9 2 4 2H14C15.1 2 16 2.9 16 4" stroke-width="1.5"
+            stroke-linecap="round" stroke-linejoin="round" stroke="#44474F" />
+        </svg>
+      </h3>
+      <div #qBox class="code-box">{{ e.erquery || '—' }}</div>
+    </div>
+
+    <!-- Response card -->
+    <div class="modal-card">
+      <h3 class="modal-card-content">
+        <span>Response</span>
+        <svg (click)="copyText(e.erresponse || rBox.innerText)" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none">
+          <path
+            d="M10 8H20C21.1046 8 22 8.89543 22 10V20C22 21.1046 21.1046 22 20 22H10C8.89543 22 8 21.1046 8 20V10C8 8.89543 8.89543 8 10 8Z"
+            stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" stroke="#44474F" />
+          <path d="M4 16C2.9 16 2 15.1 2 14V4C2 2.9 2.9 2 4 2H14C15.1 2 16 2.9 16 4" stroke-width="1.5"
+            stroke-linecap="round" stroke-linejoin="round" stroke="#44474F" />
+        </svg>
+      </h3>
+      <div #rBox class="response-box">{{ e.erresponse || '—' }}</div>
+    </div>
+  </div>
+
+  <!-- Bottom action bar -->
+  <div class="modal-footer">
+    <input type="text" class="remark-input" placeholder="Add a Remark..." [ngModel]="remark()"
+      (ngModelChange)="remark.set($event)" />
+    <button type="button" class="btn-primary-action" [disabled]="e.erstatus === 1" (click)="markResolved()">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <path d="M16.6668 5L7.50016 14.1667L3.3335 10" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"
+          stroke="white" />
+      </svg>
+      Mark as Resolved
+    </button>
+  </div>
+</div>
+}
+
+@if (isDeleting()) {
+<div class="delete-overlay">
+  <div class="delete-spinner"></div>
+</div>
+}
